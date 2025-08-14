@@ -2,48 +2,61 @@ import React, { useState, useEffect } from 'react';
 import API from '../../api';
 
 function Profile() {
-  const [user, setUser] = useState({});
-  const [username, setUsername] = useState('');
-  const [bio, setBio] = useState('');
-  const [profilePicture, setProfilePicture] = useState(null);
-  const [preview, setPreview] = useState('');
+  const [formData, setFormData] = useState({
+    username: '',
+    bio: '',
+    location: '',
+    website: '',
+    themePreference: 'light',
+    accountPrivacy: 'public'
+  });
+  const [profilePic, setProfilePic] = useState(null);
+  const [coverPic, setCoverPic] = useState(null);
+  const [previewProfile, setPreviewProfile] = useState('');
+  const [previewCover, setPreviewCover] = useState('');
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const response = await API.get('/users/profile', {
+        const res = await API.get('/users/profile', {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
-        setUser(response.data);
-        setUsername(response.data.username);
-        setBio(response.data.bio);
-        setPreview(response.data.profilePicture);
+        setFormData(res.data);
+        setPreviewProfile(res.data.profilePic);
+        setPreviewCover(res.data.coverPic);
       } catch (error) {
         console.error('Failed to fetch user profile:', error);
       }
     };
-
     fetchUserProfile();
   }, []);
 
-  const handleFileChange = (e) => {
-    setProfilePicture(e.target.files[0]);
-    setPreview(URL.createObjectURL(e.target.files[0]));
+  const handleChange = e => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.append('username', username);
-    formData.append('bio', bio);
-    if (profilePicture) {
-      formData.append('profilePicture', profilePicture);
+  const handleFileChange = (e, type) => {
+    const file = e.target.files[0];
+    if (type === 'profilePic') {
+      setProfilePic(file);
+      setPreviewProfile(URL.createObjectURL(file));
+    } else {
+      setCoverPic(file);
+      setPreviewCover(URL.createObjectURL(file));
     }
+  };
+
+  const handleUpdateProfile = async e => {
+    e.preventDefault();
+    const fd = new FormData();
+    Object.keys(formData).forEach(key => fd.append(key, formData[key]));
+    if (profilePic) fd.append('profilePic', profilePic);
+    if (coverPic) fd.append('coverPic', coverPic);
 
     try {
-      await API.put('/users/profile', formData, {
+      await API.put('/users/profile', fd, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`, // Include the token here
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'multipart/form-data',
         },
       });
@@ -58,26 +71,30 @@ function Profile() {
     <div>
       <h2>Your Profile</h2>
       <form onSubmit={handleUpdateProfile}>
-        <div>
-          <label>Username:</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-        </div>
-        <div>
-          <label>Bio:</label>
-          <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-          />
-        </div>
+        <input type="text" name="username" value={formData.username} onChange={handleChange} placeholder="Username" />
+        <textarea name="bio" value={formData.bio} onChange={handleChange} placeholder="Bio" />
+        <input type="text" name="location" value={formData.location} onChange={handleChange} placeholder="Location" />
+        <input type="text" name="website" value={formData.website} onChange={handleChange} placeholder="Website" />
+        <select name="themePreference" value={formData.themePreference} onChange={handleChange}>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+        <select name="accountPrivacy" value={formData.accountPrivacy} onChange={handleChange}>
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </select>
+
         <div>
           <label>Profile Picture:</label>
-          <input type="file" onChange={handleFileChange} />
-          {preview && <img src={preview} alt="Profile Preview" width="100" />}
+          <input type="file" onChange={e => handleFileChange(e, 'profilePic')} />
+          {previewProfile && <img src={previewProfile} alt="Profile Preview" width="100" />}
         </div>
+        <div>
+          <label>Cover Picture:</label>
+          <input type="file" onChange={e => handleFileChange(e, 'coverPic')} />
+          {previewCover && <img src={previewCover} alt="Cover Preview" width="200" />}
+        </div>
+
         <button type="submit">Update Profile</button>
       </form>
     </div>

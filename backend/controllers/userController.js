@@ -1,8 +1,9 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 
-const JWT_SECRET = "your_jwt_secret"; // Replace with your secret
+const JWT_SECRET = "your_jwt_secret"; // Replace with env variable
 
 // Register User
 exports.registerUser = async (req, res) => {
@@ -22,16 +23,12 @@ exports.loginUser = async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+    if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
 
-    const token = jwt.sign({ id: user._id }, 'your_jwt_secret', { expiresIn: '1h' });
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
     res.json({
       token,
       user: {
@@ -45,27 +42,36 @@ exports.loginUser = async (req, res) => {
   }
 };
 
-//WOrk in Progress
+// Update User Profile
 exports.updateUserProfile = async (req, res) => {
   try {
-    const { bio, profilePicture } = req.body;
-    const user = await User.findByIdAndUpdate(req.user.id, { bio, profilePicture }, { new: true });
-    res.json(user);
-  } catch (error) {
-    console.error('Error updating profile:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
-  }
-};
+    if (!req.user || !req.user.id) {
+      return res.status(400).json({ error: 'Invalid user information.' });
+    }
 
-exports.updateUserProfile = async (req, res) => {
-  try {
-    const { bio } = req.body;
-    const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
+    const { username, bio, location, website, themePreference, accountPrivacy } = req.body;
 
-    const updatedData = { bio };
-    if (profilePicture) updatedData.profilePicture = profilePicture;
+    const updatedData = {
+      username,
+      bio,
+      location,
+      website,
+      themePreference,
+      accountPrivacy
+    };
+
+    if (req.files) {
+      if (req.files.profilePic) {
+        updatedData.profilePic = `/uploads/${req.files.profilePic[0].filename}`;
+      }
+      if (req.files.coverPic) {
+        updatedData.coverPic = `/uploads/${req.files.coverPic[0].filename}`;
+      }
+    }
 
     const user = await User.findByIdAndUpdate(req.user.id, updatedData, { new: true });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
     res.json(user);
   } catch (error) {
     console.error('Error updating profile:', error);
@@ -73,7 +79,7 @@ exports.updateUserProfile = async (req, res) => {
   }
 };
 
-//Follow a user
+// Follow a user
 exports.followUser = async (req, res) => {
   try {
     const userToFollow = await User.findById(req.params.id);
@@ -83,7 +89,6 @@ exports.followUser = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Prevent duplicate following
     if (!currentUser.following.includes(userToFollow._id)) {
       currentUser.following.push(userToFollow._id);
       userToFollow.followers.push(currentUser._id);
@@ -99,7 +104,7 @@ exports.followUser = async (req, res) => {
   }
 };
 
-//Unfollow a user
+// Unfollow a user
 exports.unfollowUser = async (req, res) => {
   try {
     const userToUnfollow = await User.findById(req.params.id);
@@ -125,50 +130,20 @@ exports.unfollowUser = async (req, res) => {
   }
 };
 
-exports.updateUserProfile = async (req, res) => {
-  console.log('User object in request:', req.user); // Debugging: Check if `req.user` is defined
-  try {
-    if (!req.user || !req.user.id) {
-      return res.status(400).json({ error: 'Invalid user information.' });
-    }
-
-    const { username, bio } = req.body;
-    const profilePicture = req.file ? `/uploads/${req.file.filename}` : undefined;
-
-    const updatedData = { username, bio };
-    if (profilePicture) updatedData.profilePicture = profilePicture;
-
-    const user = await User.findByIdAndUpdate(req.user.id, updatedData, { new: true });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json(user);
-  } catch (error) {
-    console.error('Error updating profile:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
-  }
-};
-
-
-const mongoose = require('mongoose');
-
+// Get User Profile
 exports.getUserProfile = async (req, res) => {
   try {
     const userId = req.params.id;
-    // Validate if the id is a valid ObjectId
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: 'Invalid user ID' });
     }
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    const user = await User.findById(userId).select('-password -tokens');
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.status(200).json(user);
   } catch (error) {
-    console.error(error);
+    console.error('Error fetching profile:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

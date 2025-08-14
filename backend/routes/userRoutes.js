@@ -1,42 +1,44 @@
 const express = require('express');
-const { registerUser, loginUser } = require('../controllers/userController');
-const multer = require('multer');
 const router = express.Router();
+const multer = require('multer');
 const auth = require('../middleware/auth');
-const { updateUserProfile, getUserProfile, searchUser } = require('../controllers/userController');
-const { followUser, unfollowUser } = require('../controllers/userController');
 const authenticateUser = require('../middleware/authenticateUser');
+const {
+  registerUser,
+  loginUser,
+  updateUserProfile,
+  getUserProfile,
+  followUser,
+  unfollowUser
+} = require('../controllers/userController');
 
+// Multer config
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  },
+});
+const upload = multer({ storage });
+
+// Auth routes
 router.post('/register', registerUser);
 router.post('/login', loginUser);
-router.put('/profile', updateUserProfile);
-router.get('user/:id', auth, getUserProfile); // Get a user's profile
-// Follow a user
+
+// Profile routes
+router.get('/profile/:id', auth, getUserProfile);
+router.get('/profile', authenticateUser, (req, res) => res.send(req.user));
+router.put(
+  '/profile',
+  auth,
+  upload.fields([{ name: 'profilePic' }, { name: 'coverPic' }]),
+  updateUserProfile
+);
+
+// Follow/unfollow
 router.put('/:id/follow', auth, followUser);
-
-// Unfollow a user
 router.put('/:id/unfollow', auth, unfollowUser);
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-      cb(null, Date.now() + '-' + file.originalname);
-    },
-});
-
-router.get('/profile', authenticateUser, (req, res) => {
-  console.log('User object in request:', req.user); // Debugging message
-  res.send(req.user);
-});
-
-
-  
-const upload = multer({ storage });
-  
-// Update user profile with image upload
-router.put('/profile', auth, upload.single('profilePicture'), updateUserProfile);
-  
 
 module.exports = router;
