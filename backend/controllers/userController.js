@@ -1,0 +1,174 @@
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+
+const JWT_SECRET = "your_jwt_secret"; // Replace with your secret
+
+// Register User
+exports.registerUser = async (req, res) => {
+  const { username, email, password } = req.body;
+  try {
+    const newUser = new User({ username, email, password });
+    await newUser.save();
+    res.status(201).json({ message: 'User registered successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to register user' });
+  }
+};
+
+// Login User
+exports.loginUser = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign({ id: user._id }, 'your_jwt_secret', { expiresIn: '1h' });
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error('Error logging in:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+//WOrk in Progress
+exports.updateUserProfile = async (req, res) => {
+  try {
+    const { bio, profilePicture } = req.body;
+    const user = await User.findByIdAndUpdate(req.user.id, { bio, profilePicture }, { new: true });
+    res.json(user);
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+};
+
+exports.updateUserProfile = async (req, res) => {
+  try {
+    const { bio } = req.body;
+    const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
+
+    const updatedData = { bio };
+    if (profilePicture) updatedData.profilePicture = profilePicture;
+
+    const user = await User.findByIdAndUpdate(req.user.id, updatedData, { new: true });
+    res.json(user);
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+};
+
+//Follow a user
+exports.followUser = async (req, res) => {
+  try {
+    const userToFollow = await User.findById(req.params.id);
+    const currentUser = await User.findById(req.user.id);
+
+    if (!userToFollow || !currentUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent duplicate following
+    if (!currentUser.following.includes(userToFollow._id)) {
+      currentUser.following.push(userToFollow._id);
+      userToFollow.followers.push(currentUser._id);
+      await currentUser.save();
+      await userToFollow.save();
+      res.status(200).json({ message: 'User followed successfully' });
+    } else {
+      res.status(400).json({ error: 'You are already following this user' });
+    }
+  } catch (error) {
+    console.error('Error following user:', error);
+    res.status(500).json({ error: 'Failed to follow user' });
+  }
+};
+
+//Unfollow a user
+exports.unfollowUser = async (req, res) => {
+  try {
+    const userToUnfollow = await User.findById(req.params.id);
+    const currentUser = await User.findById(req.user.id);
+
+    if (!userToUnfollow || !currentUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    currentUser.following = currentUser.following.filter(
+      (id) => id.toString() !== userToUnfollow._id.toString()
+    );
+    userToUnfollow.followers = userToUnfollow.followers.filter(
+      (id) => id.toString() !== currentUser._id.toString()
+    );
+
+    await currentUser.save();
+    await userToUnfollow.save();
+    res.status(200).json({ message: 'User unfollowed successfully' });
+  } catch (error) {
+    console.error('Error unfollowing user:', error);
+    res.status(500).json({ error: 'Failed to unfollow user' });
+  }
+};
+
+exports.updateUserProfile = async (req, res) => {
+  console.log('User object in request:', req.user); // Debugging: Check if `req.user` is defined
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(400).json({ error: 'Invalid user information.' });
+    }
+
+    const { username, bio } = req.body;
+    const profilePicture = req.file ? `/uploads/${req.file.filename}` : undefined;
+
+    const updatedData = { username, bio };
+    if (profilePicture) updatedData.profilePicture = profilePicture;
+
+    const user = await User.findByIdAndUpdate(req.user.id, updatedData, { new: true });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+};
+
+
+const mongoose = require('mongoose');
+
+exports.getUserProfile = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    // Validate if the id is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
