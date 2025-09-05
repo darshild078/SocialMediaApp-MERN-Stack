@@ -138,7 +138,11 @@ exports.getUserProfile = async (req, res) => {
       return res.status(400).json({ message: 'Invalid user ID' });
     }
 
-    const user = await User.findById(userId).select('-password -tokens');
+    const user = await User.findById(userId)
+      .select('-password -tokens')
+      .populate('followers', 'username')  // Populate followers with username (or other fields)
+      .populate('following', 'username'); // Populate following similarly
+
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.status(200).json(user);

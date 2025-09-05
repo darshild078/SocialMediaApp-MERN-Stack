@@ -24,9 +24,13 @@ function PostFeed() {
 
   const handleAddComment = async (postId) => {
     try {
-      const { data } = await API.post(`/posts/${postId}/comment`, { text: commentTexts[postId] }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
+      const { data } = await API.post(
+        `/posts/${postId}/comment`,
+        { text: commentTexts[postId] },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        }
+      );
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
           post._id === postId ? { ...post, comments: data } : post
@@ -38,7 +42,7 @@ function PostFeed() {
     }
   };
 
-  const filteredPosts = posts.filter(post => {
+  const filteredPosts = posts.filter((post) => {
     if (filter === 'text') {
       return !post.file; // Only text posts
     }
@@ -89,7 +93,7 @@ function PostFeed() {
       await API.delete(`/posts/${postId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
-      setPosts(posts.filter(post => post._id !== postId));
+      setPosts(posts.filter((post) => post._id !== postId));
     } catch (error) {
       console.error('Failed to delete post:', error);
     }
@@ -101,16 +105,26 @@ function PostFeed() {
 
       {/* Filter Controls */}
       <div style={styles.filterControls}>
-        <button onClick={() => setFilter('all')} style={styles.button}>All</button>
-        <button onClick={() => setFilter('text')} style={styles.button}>Text Only</button>
-        <button onClick={() => setFilter('pictures')} style={styles.button}>Pictures Only</button>
+        <button onClick={() => setFilter('all')} style={styles.button}>
+          All
+        </button>
+        <button onClick={() => setFilter('text')} style={styles.button}>
+          Text Only
+        </button>
+        <button onClick={() => setFilter('pictures')} style={styles.button}>
+          Pictures Only
+        </button>
       </div>
 
       {/* Render Filtered Posts */}
       {filteredPosts.map((post) => (
         <div key={post._id} style={styles.post}>
           <h3>
-          <Link to={`/profile/${post.user?._id}`}>{post.user?.username || 'Unknown User'}</Link>
+            {post.user ? (
+              <Link to={`/profile/${post.user._id}`}>{post.user.username}</Link>
+            ) : (
+              <span>Unknown User</span>
+            )}
           </h3>
           <p>{post.content}</p>
           {post.file && (
@@ -121,8 +135,12 @@ function PostFeed() {
             />
           )}
           <div>
-            <button onClick={() => handleLike(post._id)} style={styles.button}>👍</button>
-            <button onClick={() => handleUnlike(post._id)} style={styles.button}>👎</button>
+            <button onClick={() => handleLike(post._id)} style={styles.button}>
+              👍
+            </button>
+            <button onClick={() => handleUnlike(post._id)} style={styles.button}>
+              👎
+            </button>
             <span>{post.likes.length} likes</span>
             <br />
             <div style={styles.commentsSection}>
@@ -139,7 +157,10 @@ function PostFeed() {
                 onChange={(e) => handleCommentChange(post._id, e.target.value)}
                 style={styles.input}
               />
-              <button onClick={() => handleAddComment(post._id)} style={styles.button}>
+              <button
+                onClick={() => handleAddComment(post._id)}
+                style={styles.button}
+              >
                 Comment
               </button>
             </div>
@@ -173,15 +194,15 @@ const styles = {
     marginBottom: '20px',
   },
   button: {
-    backgroundColor: '#ffffff', // Blue background for visibility
-    border: 'none',             // Remove border
-    color: 'black',             // White text color
-    padding: '10px 15px',       // Padding for size
-    cursor: 'pointer',          // Pointer cursor on hover
-    marginRight: '10px',        // Space between buttons
-    borderRadius: '4px',        // Rounded corners
-    fontSize: '16px',           // Font size for visibility
-    fontWeight: 'bold',         // Bold text for better visibility
+    backgroundColor: '#ffffff', // White background for visibility
+    border: 'none', // Remove border
+    color: 'black', // Black text color
+    padding: '10px 15px', // Padding for size
+    cursor: 'pointer', // Pointer cursor on hover
+    marginRight: '10px', // Space between buttons
+    borderRadius: '4px', // Rounded corners
+    fontSize: '16px', // Font size for visibility
+    fontWeight: 'bold', // Bold text for better visibility
   },
   deleteButton: {
     color: 'red',
@@ -207,6 +228,5 @@ const styles = {
     border: '1px solid #ccc',
   },
 };
-
 
 export default PostFeed;

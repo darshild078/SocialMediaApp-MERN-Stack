@@ -9,7 +9,7 @@ const {
   updateUserProfile,
   getUserProfile,
   followUser,
-  unfollowUser
+  unfollowUser,
 } = require('../controllers/userController');
 
 // Multer config
@@ -21,6 +21,7 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + '-' + file.originalname);
   },
 });
+
 const upload = multer({ storage });
 
 // Auth routes
@@ -28,7 +29,7 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 
 // Profile routes
-router.get('/profile/:id', auth, getUserProfile);
+router.get('/profile/:id', auth, getUserProfile); // Auth-protected route
 router.get('/profile', authenticateUser, (req, res) => res.send(req.user));
 router.put(
   '/profile',
