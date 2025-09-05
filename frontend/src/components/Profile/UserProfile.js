@@ -5,25 +5,43 @@ import API from '../../api';
 function UserProfile() {
   const { id } = useParams();
   const [user, setUser] = useState(null);
+  const [userPosts, setUserPosts] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [activeTab, setActiveTab] = useState('posts');
+  const [loading, setLoading] = useState(true);
+
+  const currentUserId = localStorage.getItem('userId');
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
+    const fetchUserData = async () => {
       try {
-        const response = await API.get(`/users/profile/${id}`, {
+        // Fetch user profile
+        const profileResponse = await API.get(`/users/profile/${id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
-        const fetchedUser = response.data;
+        const fetchedUser = profileResponse.data;
         setUser(fetchedUser);
-        const currentUserId = localStorage.getItem('userId');
         setIsFollowing(fetchedUser.followers?.some(followerId => followerId === currentUserId));
+
+        // Fetch user posts
+        try {
+          const postsResponse = await API.get(`/posts/user/${id}`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          });
+          setUserPosts(postsResponse.data);
+        } catch (postsError) {
+          console.log('Posts not available yet');
+          setUserPosts([]);
+        }
+        
+        setLoading(false);
       } catch (error) {
-        console.error('Failed to fetch user profile:', error);
-        setUser(null);
+        console.error('Failed to fetch user data:', error);
+        setLoading(false);
       }
     };
-    fetchUserProfile();
-  }, [id]);
+    fetchUserData();
+  }, [id, currentUserId]);
 
   const handleFollow = async () => {
     try {
@@ -33,7 +51,7 @@ function UserProfile() {
       setIsFollowing(true);
       setUser((prevUser) => ({
         ...prevUser,
-        followers: [...(prevUser.followers || []), localStorage.getItem('userId')],
+        followers: [...(prevUser.followers || []), currentUserId],
       }));
     } catch (error) {
       console.error('Failed to follow user:', error);
@@ -48,67 +66,219 @@ function UserProfile() {
       setIsFollowing(false);
       setUser((prevUser) => ({
         ...prevUser,
-        followers: prevUser.followers.filter(followerId => followerId !== localStorage.getItem('userId')),
+        followers: prevUser.followers.filter(followerId => followerId !== currentUserId),
       }));
     } catch (error) {
       console.error('Failed to unfollow user:', error);
     }
   };
 
-  if (!user) return <div>Loading profile...</div>;
+  const handleLike = async (postId) => {
+    try {
+      await API.put(`/posts/${postId}/like`, null, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      setUserPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post._id === postId ? { ...post, likes: [...post.likes, currentUserId] } : post
+        )
+      );
+    } catch (error) {
+      console.error('Failed to like post:', error);
+    }
+  };
+
+  const handleUnlike = async (postId) => {
+    try {
+      await API.put(`/posts/${postId}/unlike`, null, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      setUserPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post._id === postId
+            ? { ...post, likes: post.likes.filter((likeId) => likeId !== currentUserId) }
+            : post
+        )
+      );
+    } catch (error) {
+      console.error('Failed to unlike post:', error);
+    }
+  };
+
+  if (loading) return <div className="profile-loading">Loading profile...</div>;
+  if (!user) return <div className="profile-error">User not found</div>;
 
   return (
-    <div
-      style={{
-        maxWidth: 600,
-        margin: '20px auto',
-        padding: 20,
-        border: '1px solid #ccc',
-        borderRadius: 8,
-        fontFamily: 'Arial, sans-serif',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-        {user.profilePic ? (
-          <img
-            src={`http://localhost:5000${user.profilePic}`}
-            alt={`${user.username}'s profile`}
-            style={{ width: 150, height: 150, borderRadius: '50%', objectFit: 'cover', marginRight: 20 }}
-          />
+    <div className="user-profile-container">
+      {/* Cover Photo Section */}
+      <div className="cover-photo">
+        {user.coverPic ? (
+          <img src={`http://localhost:5000${user.coverPic}`} alt="Cover" className="cover-image" />
         ) : (
-          <div
-            style={{
-              width: 150,
-              height: 150,
-              borderRadius: '50%',
-              backgroundColor: '#ccc',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 48,
-              color: '#666',
-              marginRight: 20,
-            }}
-          >
-            ?
+          <div className="default-cover"></div>
+        )}
+      </div>
+
+      {/* Profile Header */}
+      <div className="profile-header">
+        <div className="profile-avatar">
+          {user.profilePic ? (
+            <img
+              src={`http://localhost:5000${user.profilePic}`}
+              alt={`${user.username}'s profile`}
+              className="avatar-image"
+            />
+          ) : (
+            <div className="default-avatar">
+              {user.username ? user.username.charAt(0).toUpperCase() : '?'}
+            </div>
+          )}
+        </div>
+
+        <div className="profile-actions">
+          {currentUserId !== id && (
+            <>
+              <button className="message-btn">Message</button>
+              {isFollowing ? (
+                <button className="unfollow-btn" onClick={handleUnfollow}>
+                  Unfollow
+                </button>
+              ) : (
+                <button className="follow-btn" onClick={handleFollow}>
+                  Follow
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* User Info */}
+      <div className="user-info">
+        <h1 className="username">{user.username}</h1>
+        <p className="user-handle">@{user.username?.toLowerCase()}</p>
+        {user.bio && <p className="user-bio">{user.bio}</p>}
+        
+        <div className="user-stats">
+          <span className="stat">
+            <strong>{user.following?.length || 0}</strong> Following
+          </span>
+          <span className="stat">
+            <strong>{user.followers?.length || 0}</strong> Followers
+          </span>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="profile-tabs">
+        <button
+          className={`tab ${activeTab === 'posts' ? 'active' : ''}`}
+          onClick={() => setActiveTab('posts')}
+        >
+          Posts
+        </button>
+        <button
+          className={`tab ${activeTab === 'media' ? 'active' : ''}`}
+          onClick={() => setActiveTab('media')}
+        >
+          Media
+        </button>
+        <button
+          className={`tab ${activeTab === 'likes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('likes')}
+        >
+          Likes
+        </button>
+      </div>
+
+      {/* Posts Section */}
+      <div className="posts-section">
+        {activeTab === 'posts' && (
+          <div className="posts-list">
+            {userPosts.length === 0 ? (
+              <div className="no-posts">No posts yet</div>
+            ) : (
+              userPosts.map((post) => (
+                <div key={post._id} className="profile-post">
+                  <div className="post-header">
+                    <div className="post-avatar">
+                    </div>
+                    <div className="post-user-info">
+                      <span className="post-username">{user.username}</span>
+                      <span className="post-handle">@{user.username?.toLowerCase()}</span>
+                      <span className="post-date">·</span>
+                      <span className="post-date">{new Date(post.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="post-content">
+                    <p>{post.content}</p>
+                    {post.file && (
+                      <img
+                        src={`http://localhost:5000${post.file}`}
+                        alt="Post content"
+                        className="post-image"
+                      />
+                    )}
+                  </div>
+                  <div className="post-actions">
+                    <div className="action-group">
+                      <button className="action-btn comment-btn">
+                        <span className="action-icon">💬</span>
+                        <span>{post.comments?.length || 0}</span>
+                      </button>
+                      <button className="action-btn retweet-btn">
+                        <span className="action-icon">🔄</span>
+                        <span>0</span>
+                      </button>
+                      <button
+                        className={`action-btn like-btn ${post.likes?.includes(currentUserId) ? 'liked' : ''}`}
+                        onClick={() => 
+                          post.likes?.includes(currentUserId) 
+                            ? handleUnlike(post._id) 
+                            : handleLike(post._id)
+                        }
+                      >
+                        <span className="action-icon">❤️</span>
+                        <span>{post.likes?.length || 0}</span>
+                      </button>
+                      <button className="action-btn share-btn">
+                        <span className="action-icon">📤</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
 
-        <div>
-          <h2 style={{ margin: 0, fontWeight: 'bold' }}>{user.username || 'User'}</h2>
-          <p style={{ fontStyle: 'italic', color: '#888' }}>{user.bio || 'This user has no bio.'}</p>
-          <p>
-            <strong>Followers:</strong> {user.followers?.length || 0} <br />
-            <strong>Following:</strong> {user.following?.length || 0}
-          </p>
-          {localStorage.getItem('userId') !== id && (
-            isFollowing ? (
-              <button onClick={handleUnfollow} style={{ padding: '8px 16px', cursor: 'pointer' }}>Unfollow</button>
+        {activeTab === 'media' && (
+          <div className="media-grid">
+            {userPosts.filter(post => post.file).length === 0 ? (
+              <div className="no-media">No media posts</div>
             ) : (
-              <button onClick={handleFollow} style={{ padding: '8px 16px', cursor: 'pointer' }}>Follow</button>
-            )
-          )}
-        </div>
+              userPosts
+                .filter(post => post.file)
+                .map((post) => (
+                  <div key={post._id} className="media-item">
+                    <img
+                      src={`http://localhost:5000${post.file}`}
+                      alt="Media content"
+                      className="media-image"
+                    />
+                  </div>
+                ))
+            )}
+          </div>
+        )}
+
+        {activeTab === 'likes' && (
+          <div className="likes-section">
+            <div className="feature-coming-soon">
+              Liked posts feature coming soon
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
