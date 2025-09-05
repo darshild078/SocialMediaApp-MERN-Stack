@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import API from '../../api';
 
-function Login() {
+function Login({ setIsAuthenticated }) {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const navigate = useNavigate();
 
@@ -17,8 +17,9 @@ function Login() {
       if (data.user) {
         localStorage.setItem('token', data.token); // Save token to localStorage
         localStorage.setItem('userId', data.user._id); // Save userId to localStorage
+        setIsAuthenticated(true); // Notify App.js about login status change
         alert('Login successful');
-        navigate('/'); // Redirect to home page
+        navigate('/'); // Redirect to home page (PostFeed)
       } else {
         alert('Login failed: User data missing');
       }
@@ -27,8 +28,6 @@ function Login() {
       alert('Login failed');
     }
   };
-  
-  
 
   return (
     <div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
@@ -9,7 +9,17 @@ import UserProfile from './components/Profile/UserProfile'; // Import the new Us
 import Navbar from './components/Navbar';
 
 function App() {
-  const isAuthenticated = !!localStorage.getItem('token');
+  // Use state for authentication so UI updates on login/logout
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+
+  // Optional: Listen for storage changes (if multiple tabs)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setIsAuthenticated(!!localStorage.getItem('token'));
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   return (
     <Router>
@@ -17,7 +27,9 @@ function App() {
         <Navbar />
         <div style={{ padding: '20px' }}>
           <Routes>
-            <Route path="/login" element={<Login />} />
+            <Route path="/login" element={
+              isAuthenticated ? <Navigate to="/" /> : <Login setIsAuthenticated={setIsAuthenticated} />
+            } />
             <Route path="/register" element={<Register />} />
             <Route path="/" element={isAuthenticated ? <PostFeed /> : <Navigate to="/login" />} />
             <Route path="/create-post" element={isAuthenticated ? <CreatePost /> : <Navigate to="/login" />} />
