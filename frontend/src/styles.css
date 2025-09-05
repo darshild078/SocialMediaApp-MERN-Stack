@@ -492,3 +492,18 @@ textarea {
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
   }
+
+  /* Add this to your existing styles.css for hover effects */
+  nav ul li a,
+  nav ul li span {
+    color: white;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  
+  nav ul li a:hover,
+  nav ul li span:hover {
+    text-decoration: underline;
+    color: #ccc;
+  }  

@@ -5,14 +5,14 @@ import Register from './components/Auth/Register';
 import PostFeed from './components/Posts/PostFeed';
 import CreatePost from './components/Posts/CreatePost';
 import Profile from './components/Profile/Profile';
-import UserProfile from './components/Profile/UserProfile'; // Import the new UserProfile component
+import UserProfile from './components/Profile/UserProfile';
 import Navbar from './components/Navbar';
 
 function App() {
-  // Use state for authentication so UI updates on login/logout
+  // Manage authentication state in App component
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
 
-  // Optional: Listen for storage changes (if multiple tabs)
+  // Listen for storage changes (useful for multiple tabs)
   useEffect(() => {
     const handleStorageChange = () => {
       setIsAuthenticated(!!localStorage.getItem('token'));
@@ -24,17 +24,23 @@ function App() {
   return (
     <Router>
       <div>
-        <Navbar />
+        {/* Pass authentication state and setter to Navbar */}
+        <Navbar isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} />
         <div style={{ padding: '20px' }}>
           <Routes>
-            <Route path="/login" element={
-              isAuthenticated ? <Navigate to="/" /> : <Login setIsAuthenticated={setIsAuthenticated} />
-            } />
+            <Route 
+              path="/login" 
+              element={
+                isAuthenticated ? 
+                <Navigate to="/" /> : 
+                <Login setIsAuthenticated={setIsAuthenticated} />
+              } 
+            />
             <Route path="/register" element={<Register />} />
             <Route path="/" element={isAuthenticated ? <PostFeed /> : <Navigate to="/login" />} />
             <Route path="/create-post" element={isAuthenticated ? <CreatePost /> : <Navigate to="/login" />} />
             <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
-            <Route path="/profile/:id" element={isAuthenticated ? <UserProfile /> : <Navigate to="/login" />} /> {/* Dynamic Profile Route */}
+            <Route path="/profile/:id" element={isAuthenticated ? <UserProfile /> : <Navigate to="/login" />} />
           </Routes>
         </div>
       </div>

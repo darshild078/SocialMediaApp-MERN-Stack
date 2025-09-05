@@ -15,11 +15,11 @@ function Login({ setIsAuthenticated }) {
     try {
       const { data } = await API.post('/users/login', formData);
       if (data.user) {
-        localStorage.setItem('token', data.token); // Save token to localStorage
-        localStorage.setItem('userId', data.user._id); // Save userId to localStorage
-        setIsAuthenticated(true); // Notify App.js about login status change
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('userId', data.user._id);
+        setIsAuthenticated(true); // Update App's auth state
         alert('Login successful');
-        navigate('/'); // Redirect to home page (PostFeed)
+        navigate('/');
       } else {
         alert('Login failed: User data missing');
       }
