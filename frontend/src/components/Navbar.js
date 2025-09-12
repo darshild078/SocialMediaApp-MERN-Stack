@@ -3,48 +3,40 @@ import { Link, useNavigate } from 'react-router-dom';
 
 function Navbar({ isAuthenticated, setIsAuthenticated }) {
   const navigate = useNavigate();
+  const currentUserId = localStorage.getItem('userId');
 
   const handleLogout = () => {
-    // Show confirmation prompt
     const confirmLogout = window.confirm('Are you sure you want to logout?');
-    
     if (confirmLogout) {
-      // Clear authentication data from localStorage
       localStorage.removeItem('token');
       localStorage.removeItem('userId');
-      
-      // Update authentication state in App component
       setIsAuthenticated(false);
-      
-      // Navigate to login page
       navigate('/login');
-      
-      // Optional: Show logout success message
       alert('Logged out successfully!');
     }
-    // If user clicks "No", nothing happens and they stay on current page
   };
 
   return (
     <nav style={styles.navbar}>
-      <div style={styles.logo}>Switter</div>
+      {/* Left side - Logo */}
+      <div style={styles.logo}>
+        <Link to="/" style={styles.logoLink}>Switter</Link>
+      </div>
+      
+      {/* Right side - All navigation items */}
       <ul style={styles.navLinks}>
-        <li><Link to="/" style={styles.link}>Home</Link></li>
-        
-        {/* Show Create Post and Profile only when authenticated */}
         {isAuthenticated && (
           <>
-            <li><Link to="/create-post" style={styles.link}>Create Post</Link></li>
-            <li><Link to="/profile" style={styles.link}>Profile</Link></li>
+            <li><Link to="/create-post" style={styles.link}>Create</Link></li>
+            <li><Link to={`/profile/${currentUserId}`} style={styles.link}>Profile</Link></li>
           </>
         )}
         
-        {/* Conditional Login/Logout */}
         <li>
           {isAuthenticated ? (
-            <span onClick={handleLogout} style={styles.link}>
+            <button onClick={handleLogout} style={styles.logoutButton}>
               Logout
-            </span>
+            </button>
           ) : (
             <Link to="/login" style={styles.link}>Login</Link>
           )}
@@ -67,16 +59,29 @@ const styles = {
     fontSize: '24px',
     fontWeight: 'bold',
   },
+  logoLink: {
+    color: 'white',
+    textDecoration: 'none',
+  },
   navLinks: {
     listStyle: 'none',
     display: 'flex',
     gap: '15px',
     margin: 0,
     padding: 0,
+    alignItems: 'center',
   },
   link: {
     color: 'white',
     textDecoration: 'none',
+    cursor: 'pointer',
+  },
+  logoutButton: {
+    backgroundColor: '#4CAF50',
+    color: 'white',
+    border: 'none',
+    padding: '5px 15px',
+    borderRadius: '4px',
     cursor: 'pointer',
   },
 };
