@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { motion, AnimatePresence } from 'framer-motion';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
+import AuthSuccess from './components/Auth/AuthSuccess';
 import PostFeed from './components/Posts/PostFeed';
 import CreatePost from './components/Posts/CreatePost';
 import Profile from './components/Profile/Profile';
@@ -62,10 +63,17 @@ function App() {
                 path="/register" 
                 element={
                   !isAuthenticated ? 
-                  <Register /> : 
+                  <Register setIsAuthenticated={setIsAuthenticated} /> : 
                   <Navigate to="/" replace />
                 } 
               />
+              
+              {/* NEW: Google OAuth Success Route */}
+              <Route 
+                path="/auth/success" 
+                element={<AuthSuccess setIsAuthenticated={setIsAuthenticated} />} 
+              />
+              
               <Route 
                 path="/" 
                 element={
