@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import API from '../../api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiHeart, FiMessageCircle, FiShare2, FiMoreHorizontal, FiFilter } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
+import API from '../../api';
+import './PostFeed.css';
 
 function PostFeed() {
   const [posts, setPosts] = useState([]);
-  const [commentTexts, setCommentTexts] = useState({}); // State for comments by post ID
-  const [filter, setFilter] = useState('all'); // State for filtering posts
-
+  const [commentTexts, setCommentTexts] = useState({});
+  const [filter, setFilter] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
   const userId = localStorage.getItem('userId');
 
   useEffect(() => {
@@ -16,44 +19,31 @@ function PostFeed() {
         setPosts(response.data);
       } catch (error) {
         console.error('Failed to fetch posts:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
-
     fetchPosts();
   }, []);
 
   const handleAddComment = async (postId) => {
+    if (!commentTexts[postId]?.trim()) return;
+    
     try {
       const { data } = await API.post(
         `/posts/${postId}/comment`,
         { text: commentTexts[postId] },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        }
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
           post._id === postId ? { ...post, comments: data } : post
         )
       );
-      setCommentTexts({ ...commentTexts, [postId]: '' }); // Clear the input after adding a comment
+      setCommentTexts({ ...commentTexts, [postId]: '' });
     } catch (error) {
       console.error('Failed to add comment:', error);
     }
-  };
-
-  const filteredPosts = posts.filter((post) => {
-    if (filter === 'text') {
-      return !post.file; // Only text posts
-    }
-    if (filter === 'pictures') {
-      return post.file; // Only posts with pictures
-    }
-    return true; // All posts
-  });
-
-  const handleCommentChange = (postId, text) => {
-    setCommentTexts({ ...commentTexts, [postId]: text });
   };
 
   const handleLike = async (postId) => {
@@ -63,7 +53,9 @@ function PostFeed() {
       });
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
-          post._id === postId ? { ...post, likes: [...post.likes, userId] } : post
+          post._id === postId
+            ? { ...post, likes: [...(post.likes || []), userId] }
+            : post
         )
       );
     } catch (error) {
@@ -79,7 +71,7 @@ function PostFeed() {
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
           post._id === postId
-            ? { ...post, likes: post.likes.filter((id) => id !== userId) }
+            ? { ...post, likes: (post.likes || []).filter((id) => id !== userId) }
             : post
         )
       );
@@ -88,145 +80,226 @@ function PostFeed() {
     }
   };
 
-  const handleDelete = async (postId) => {
-    try {
-      await API.delete(`/posts/${postId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
-      setPosts(posts.filter((post) => post._id !== postId));
-    } catch (error) {
-      console.error('Failed to delete post:', error);
+  const filteredPosts = posts.filter((post) => {
+    if (filter === 'text') return !post.file;
+    if (filter === 'pictures') return post.file;
+    return true;
+  });
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
     }
   };
 
-  return (
-    <div>
-      <h2>Post Feed</h2>
+  const postVariants = {
+    hidden: { opacity: 0, y: 30, scale: 0.95 },
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      scale: 1,
+      transition: {
+        type: "spring",
+        damping: 20,
+        stiffness: 300
+      }
+    }
+  };
 
-      {/* Filter Controls */}
-      <div style={styles.filterControls}>
-        <button onClick={() => setFilter('all')} style={styles.button}>
-          All
-        </button>
-        <button onClick={() => setFilter('text')} style={styles.button}>
-          Text Only
-        </button>
-        <button onClick={() => setFilter('pictures')} style={styles.button}>
-          Pictures Only
-        </button>
-      </div>
-
-      {/* Render Filtered Posts */}
-      {filteredPosts.map((post) => (
-        <div key={post._id} style={styles.post}>
-          <h3>
-            {post.user ? (
-              <Link to={`/profile/${post.user._id}`}>{post.user.username}</Link>
-            ) : (
-              <span>Unknown User</span>
-            )}
-          </h3>
-          <p>{post.content}</p>
-          {post.file && (
-            <img
-              src={`http://localhost:5000${post.file}`}
-              alt="Uploaded content"
-              style={styles.image}
-            />
-          )}
-          <div>
-            <button onClick={() => handleLike(post._id)} style={styles.button}>
-              👍
-            </button>
-            <button onClick={() => handleUnlike(post._id)} style={styles.button}>
-              👎
-            </button>
-            <span>{post.likes.length} likes</span>
-            <br />
-            <div style={styles.commentsSection}>
-              <h4>Comments</h4>
-              {(post.comments || []).map((comment) => (
-                <div key={comment._id} style={styles.comment}>
-                  <strong>{comment.user?.username || 'User'}:</strong> {comment.text}
-                </div>
-              ))}
-              <input
-                type="text"
-                placeholder="Add a comment..."
-                value={commentTexts[post._id] || ''}
-                onChange={(e) => handleCommentChange(post._id, e.target.value)}
-                style={styles.input}
-              />
-              <button
-                onClick={() => handleAddComment(post._id)}
-                style={styles.button}
-              >
-                Comment
-              </button>
-            </div>
-          </div>
-          <small>{new Date(post.createdAt).toLocaleString()}</small>
-
-          {post.user && post.user._id === userId && (
-            <button onClick={() => handleDelete(post._id)} style={styles.deleteButton}>
-              🗑️ Delete
-            </button>
-          )}
+  if (isLoading) {
+    return (
+      <div className="page-container">
+        <div className="loading-container">
+          <motion.div
+            className="loading-spinner-lg"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+          <p className="text-lg text-gray-600 mt-4">Loading your feed...</p>
         </div>
-      ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-container pt-20">
+      <div className="container">
+        <motion.div
+          className="feed-header mb-8"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h1 className="text-4xl font-bold text-gradient mb-4">Your Feed</h1>
+          
+          <div className="filter-container">
+            {['all', 'text', 'pictures'].map((filterType) => (
+              <motion.button
+                key={filterType}
+                className={`btn-base btn-sm ${filter === filterType ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilter(filterType)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <FiFilter size={14} />
+                {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="posts-grid"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <AnimatePresence>
+            {filteredPosts.map((post, index) => (
+              <motion.div
+                key={post._id}
+                className="card-base card-hover post-card"
+                variants={postVariants}
+                layout
+                exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.3 } }}
+                custom={index}
+              >
+                <div className="post-header">
+                  <div className="post-user-info">
+                    <motion.div 
+                      className="avatar-base avatar-md avatar-gradient avatar-interactive"
+                      whileHover={{ scale: 1.1 }}
+                    >
+                      <span>{post.user?.username?.[0]?.toUpperCase() || 'U'}</span>
+                    </motion.div>
+                    <div className="post-user-details">
+                      <Link 
+                        to={`/user/${post.user?._id}`} 
+                        className="post-username font-semibold text-gray-800 hover:text-primary-600"
+                      >
+                        {post.user?.username || 'Unknown User'}
+                      </Link>
+                      <span className="post-time text-sm text-gray-500">
+                        {new Date(post.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <motion.button
+                    className="btn-base btn-ghost btn-sm post-menu-btn"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <FiMoreHorizontal />
+                  </motion.button>
+                </div>
+
+                <div className="post-content">
+                  <p className="text-gray-700 leading-relaxed mb-4">{post.content}</p>
+                  {post.file && (
+                    <motion.div 
+                      className="post-media"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.2 }}
+                      whileHover={{ scale: 1.02 }}
+                    >
+                      <img
+                        src={`http://localhost:5000/${post.file}`}
+                        alt="Post content"
+                        className="w-full rounded-xl object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </motion.div>
+                  )}
+                </div>
+
+                <div className="post-actions">
+                  <motion.button
+                    className={`post-action-btn ${(post.likes || []).includes(userId) ? 'liked' : ''}`}
+                    onClick={() => (post.likes || []).includes(userId) ? handleUnlike(post._id) : handleLike(post._id)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <FiHeart className="action-icon" />
+                    <span>{(post.likes || []).length}</span>
+                  </motion.button>
+
+                  <motion.button
+                    className="post-action-btn"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <FiMessageCircle className="action-icon" />
+                    <span>{(post.comments || []).length}</span>
+                  </motion.button>
+
+                  <motion.button
+                    className="post-action-btn"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <FiShare2 className="action-icon" />
+                  </motion.button>
+                </div>
+
+                <div className="comment-section">
+                  <div className="comment-input-group">
+                    <input
+                      type="text"
+                      placeholder="Write a comment..."
+                      value={commentTexts[post._id] || ''}
+                      onChange={(e) =>
+                        setCommentTexts({
+                          ...commentTexts,
+                          [post._id]: e.target.value,
+                        })
+                      }
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddComment(post._id)}
+                      className="input-base comment-input"
+                    />
+                    <motion.button
+                      onClick={() => handleAddComment(post._id)}
+                      className={`btn-base btn-primary btn-sm ${!commentTexts[post._id]?.trim() ? 'btn-disabled' : ''}`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      disabled={!commentTexts[post._id]?.trim()}
+                    >
+                      Post
+                    </motion.button>
+                  </div>
+
+                  <div className="comments-list">
+                    {(post.comments || []).map((comment, idx) => (
+                      <motion.div
+                        key={idx}
+                        className="comment-item card-base"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                      >
+                        <span className="comment-author font-semibold text-gray-700">
+                          {comment.user?.username || 'Anonymous'}
+                        </span>
+                        <span className="comment-text text-gray-600 ml-2">
+                          {comment.text}
+                        </span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
+      </div>
     </div>
   );
 }
-
-const styles = {
-  post: {
-    backgroundColor: '#fff',
-    padding: '10px',
-    margin: '10px 0',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-  },
-  image: {
-    maxWidth: '400px',
-    marginTop: '10px',
-  },
-  filterControls: {
-    marginBottom: '20px',
-  },
-  button: {
-    backgroundColor: '#ffffff', // White background for visibility
-    border: 'none', // Remove border
-    color: 'black', // Black text color
-    padding: '10px 15px', // Padding for size
-    cursor: 'pointer', // Pointer cursor on hover
-    marginRight: '10px', // Space between buttons
-    borderRadius: '4px', // Rounded corners
-    fontSize: '16px', // Font size for visibility
-    fontWeight: 'bold', // Bold text for better visibility
-  },
-  deleteButton: {
-    color: 'red',
-    backgroundColor: 'white',
-    border: '1px solid #ccc',
-    padding: '5px 10px',
-    cursor: 'pointer',
-    marginTop: '10px',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  commentsSection: {
-    marginTop: '20px',
-  },
-  comment: {
-    marginBottom: '10px',
-  },
-  input: {
-    padding: '10px',
-    marginBottom: '10px',
-    width: '100%',
-    borderRadius: '4px',
-    border: '1px solid #ccc',
-  },
-};
 
 export default PostFeed;
