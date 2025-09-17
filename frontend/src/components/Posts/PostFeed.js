@@ -208,7 +208,7 @@ function PostFeed() {
                       whileHover={{ scale: 1.02 }}
                     >
                       <img
-                        src={`http://localhost:5000/${post.file}`}
+                        src={`http://localhost:5000${post.file}`}
                         alt="Post content"
                         className="w-full rounded-xl object-cover"
                         onError={(e) => {

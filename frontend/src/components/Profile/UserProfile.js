@@ -160,7 +160,7 @@ function UserProfile() {
             <div className="cover-photo-section">
               {user.coverPic ? (
                 <img 
-                  src={`http://localhost:5000/${user.coverPic}`} 
+                  src={`http://localhost:5000${user.coverPic}`} 
                   alt="Cover" 
                   className="cover-photo" 
                 />
@@ -170,7 +170,7 @@ function UserProfile() {
               <div className="profile-photo-wrapper">
                 {user.profilePic ? (
                   <motion.img 
-                    src={`http://localhost:5000/${user.profilePic}`} 
+                    src={`http://localhost:5000${user.profilePic}`} 
                     alt="Profile" 
                     className="profile-photo"
                     whileHover={{ scale: 1.05 }}
@@ -304,7 +304,7 @@ function UserProfile() {
                         <p>{post.content}</p>
                         {post.file && (
                           <motion.img
-                            src={`http://localhost:5000/${post.file}`}
+                            src={`http://localhost:5000${post.file}`}
                             alt="Post content"
                             className="post-image"
                             whileHover={{ scale: 1.02 }}
@@ -350,7 +350,7 @@ function UserProfile() {
                     whileHover={{ scale: 1.05 }}
                   >
                     <img
-                      src={`http://localhost:5000/${post.file}`}
+                      src={`http://localhost:5000${post.file}`}
                       alt="Media content"
                       className="media-image"
                     />
